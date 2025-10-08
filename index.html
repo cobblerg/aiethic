@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인공지능 윤리 스토리보드와 토론</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; scroll-behavior: smooth; }
+        .hidden { display: none; }
+        .scenario-card { transition: all 0.3s ease; border: 2px solid transparent; }
+        .scenario-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .selected-scenario {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            border-color: #6366f1; /* indigo-500 */
+            background-color: #eef2ff; /* indigo-50 */
+        }
+        textarea { resize: vertical; }
+        .speech-bubble {
+            position: relative;
+            background: #f1f5f9;
+            border-radius: .4em;
+        }
+        .speech-bubble:after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 0;
+            height: 0;
+            border: 20px solid transparent;
+            border-right-color: #f1f5f9;
+            border-left: 0;
+            border-bottom: 0;
+            margin-top: -10px;
+            margin-left: -20px;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">인공지능 윤리 스토리보드와 토론</h1>
+            <p class="mt-2 text-slate-600">우리가 마주할 AI 시대의 윤리적 딜레마를 탐색해봅시다.</p>
+        </header>
+
+        <section id="scenario-selection" class="w-full max-w-4xl mx-auto">
+            <h2 class="text-2xl font-semibold text-center mb-6">1. 탐구할 시나리오 주제를 선택하세요.</h2>
+            <div id="scenario-list" class="grid md:grid-cols-2 gap-6"></div>
+        </section>
+
+        <main id="workshop-area" class="hidden w-full max-w-5xl mx-auto space-y-12">
+            
+            <section id="storyboard-section">
+                <h2 class="text-2xl font-semibold mb-2">2. 선택한 시나리오로 스토리보드 만들기</h2>
+                <p class="mb-6 text-slate-500">각 장면의 대사를 수정하고, [이미지 생성] 또는 [이미지 추가] 버튼으로 우리만의 이야기를 완성하세요.</p>
+                <div id="storyboard-container" class="space-y-8"></div>
+            </section>
+            
+            <section id="solution-section">
+                <h2 class="text-2xl font-semibold mb-4">3. 윤리적 딜레마 해결 방안 모색하기</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-lg">이 문제를 어떻게 해결할 수 있을까요?</h3>
+                        <button id="hint-button" class="bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600 transition">힌트 보기</button>
+                    </div>
+                    <div id="hint-box" class="hidden bg-sky-50 p-4 rounded-lg mb-4 border border-sky-200">
+                        <p class="font-bold text-sky-800">💡 생각해 볼 점</p>
+                        <p id="hint-text" class="text-sky-700 mt-1"></p>
+                    </div>
+                    <textarea id="solution-textarea" class="w-full h-40 p-3 border rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="여러분 팀의 창의적인 해결 방안을 여기에 작성해주세요..."></textarea>
+                </div>
+            </section>
+            
+            <div class="text-center space-y-4">
+                 <button id="download-presentation" class="bg-indigo-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-indigo-700 transition shadow-md">
+                    [발표 자료 내려받기]
+                </button>
+                <button id="start-discussion-btn" class="bg-purple-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-purple-700 transition shadow-md">
+                    [실시간 토론 시작하기]
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Discussion Modal -->
+    <div id="discussion-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-50 rounded-2xl shadow-xl p-6 md:p-8 max-w-6xl w-full max-h-[90vh] overflow-y-auto relative">
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-600 hover:text-slate-900 text-2xl font-bold">&times;</button>
+            
+            <section id="discussion-section">
+                <h2 class="text-2xl font-semibold mb-4 text-center">찬반 토론하기 (실시간)</h2>
+                <div class="text-center bg-white p-4 rounded-xl shadow-md mb-6 max-w-3xl mx-auto">
+                    <label for="discussion-title-input" class="font-bold text-lg text-indigo-800">토론 주제</label>
+                    <input type="text" id="discussion-title-input" class="w-full mt-2 p-2 border rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <input type="text" id="pro-title-input" class="font-bold text-lg text-center mb-3 p-2 bg-blue-100 text-blue-800 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="pro-chat" class="chat-container h-64 overflow-y-auto bg-slate-100 p-3 rounded-lg border space-y-2"></div>
+                        <div class="mt-3 flex">
+                            <input type="text" id="pro-input" placeholder="의견..." class="flex-grow p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button id="pro-send-btn" class="bg-blue-500 text-white px-4 rounded-r-lg hover:bg-blue-600">전송</button>
+                        </div>
+                    </div>
+                    <div>
+                         <input type="text" id="con-title-input" class="font-bold text-lg text-center mb-3 p-2 bg-red-100 text-red-800 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <div id="con-chat" class="chat-container h-64 overflow-y-auto bg-slate-100 p-3 rounded-lg border space-y-2"></div>
+                        <div class="mt-3 flex">
+                            <input type="text" id="con-input" placeholder="의견..." class="flex-grow p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <button id="con-send-btn" class="bg-red-500 text-white px-4 rounded-r-lg hover:bg-red-600">전송</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reflection-section" class="mt-12">
+                <h2 class="text-2xl font-semibold mb-4">활동 소감 나누기 (실시간)</h2>
+                 <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <div class="mb-4">
+                        <label for="name-input" class="block font-medium mb-1">이름</label>
+                        <input type="text" id="name-input" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="이름을 입력하세요">
+                    </div>
+                    <div>
+                        <label for="reflection-textarea" class="block font-medium mb-1">소감</label>
+                        <textarea id="reflection-textarea" class="w-full h-32 p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="오늘 활동을 통해 배우고 느낀 점을 자유롭게 작성해주세요."></textarea>
+                    </div>
+                     <div class="text-right mt-4">
+                         <button id="save-reflection-btn" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition">소감 남기기</button>
+                     </div>
+                </div>
+                <div id="reflection-list" class="mt-6 space-y-4">
+                    <!-- Real-time reflections will be shown here -->
+                </div>
+            </section>
+            
+            <div class="text-center mt-8">
+                <button id="download-discussion-report" class="bg-teal-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-teal-700 transition shadow-md">
+                    [토론 자료 내려받기]
+                </button>
+                <p class="text-sm text-slate-500 mt-2">토론 내용과 활동 소감을 [HTML] 파일로 저장합니다.</p>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+    // --- Firebase Setup ---
+    let db, auth;
+    try {
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        if (!firebaseConfig) {
+            throw new Error("Firebase config not found.");
+        }
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+            await signInAnonymously(auth);
+        }
+    } catch(e) {
+        console.error("Firebase initialization failed:", e);
+        alert("실시간 협업 기능을 초기화할 수 없습니다. 새로고침 해주세요.");
+    }
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    
+    const scenarios = {
+        recruiter: {
+            title: "AI 면접관의 편견",
+            description: "AI 면접관이 특정 편견을 학습하여 지원자를 불공정하게 평가하는 상황을 탐색합니다.",
+            storyboard: [
+                { sceneTitle: "상황 제시: AI 면접, 과연 공정할까?", imageText: "A hopeful student preparing for an AI interview, optimistic expression, futuristic interface", dialogue: "드디어 내가 꿈꾸던 회사에 지원할 시간이야! 최신 AI 면접이라니, 정말 공정하게 나를 평가해 주겠지?" },
+                { sceneTitle: "문제 발생: 편견을 학습한 AI", imageText: "A confused student looking at a screen with an AI interviewer bot asking strange, non-relevant questions", dialogue: "AI 면접관: 당신이 졸업한 고등학교의 위치는 어디인가요? 주말에는 주로 어떤 활동을 하나요?\n나 (속마음): 내 기술이나 경험이 아니라 왜 이런 걸 물어보지...?" },
+                { sceneTitle: "갈등 심화: 노력의 배신", imageText: "A frustrated student looking at a rejection email on their phone, friend comforting them", dialogue: "친구: 그 회사 AI 면접관이 특정 지역 출신 지원자들에게 낮은 점수를 준다는 소문이 있어. 편견을 학습했나 봐.\n나: 말도 안 돼! 내 노력과 상관없이 기회조차 얻지 못했다니..." },
+                { sceneTitle: "윤리적 질문: 누구의 책임일까?", imageText: "Silhouettes of a developer, a CEO, and a robot under a giant question mark", dialogue: "AI가 편견을 학습해 불공정한 결정을 내렸다면, 그 책임은 누구에게 있을까요? (1.개발자, 2.회사, 3.AI)" }
+            ],
+            hint: "AI의 공정성을 확보하기 위한 기술적, 제도적 장치에는 무엇이 있을까요? (예: 데이터 편향성 검토, AI 결정 과정의 투명성 확보, 사람의 최종 검토 절차 등)",
+            discussion: {
+                topic: "AI 면접관의 결정은 신뢰할 수 있는가?",
+                pro: "개발자/회사의 책임이다",
+                con: "AI 자체/복합적 책임이다"
+            }
+        },
+        car: {
+            title: "자율주행차의 딜레마",
+            description: "사고가 불가피한 상황에서 자율주행차가 누구를 보호하도록 프로그래밍되어야 하는지 고민합니다.",
+            storyboard: [
+                { sceneTitle: "상황 제시: 편리함 속의 위험", imageText: "A happy family inside a self-driving car, enjoying the ride through a city", dialogue: "아빠: 자율주행 자동차 정말 편하다. 이제 운전 걱정 없이 가족들이랑 이야기도 나눌 수 있네.\n아이: 와, 자동차가 알아서 가요!" },
+                { sceneTitle: "문제 발생: 피할 수 없는 사고", imageText: "View from inside a self-driving car's dashboard, showing children suddenly running into the street", dialogue: "(시스템 경고음): 삐- 삐- 전방 보행자 감지! 충돌 예상!\n엄마: 어머! 얘들아!" },
+                { sceneTitle: "갈등 심화: 선택의 기로", imageText: "A diagram showing two paths for a car: one hitting pedestrians, the other swerving into a wall", dialogue: "차량 시스템 (내레이션): 선택지 분석 중... 옵션 A: 탑승자 보호. 예상 결과: 보행자 큰 부상. 옵션 B: 보행자 보호. 예상 결과: 탑승자 큰 부상." },
+                { sceneTitle: "윤리적 질문: 누구를 위한 알고리즘?", imageText: "A complex, glowing flowchart representing an ethical algorithm for a self-driving car", dialogue: "사고를 피할 수 없는 상황에서, 자율주행 자동차는 누구를 우선으로 보호하도록 만들어야 할까요? (1.탑승자, 2.보행자, 3.상황에 따라)" }
+            ],
+            hint: "이러한 윤리적 결정을 누가 내려야 할까요? (개발자, 제조사, 자동차 소유주, 혹은 사회적 합의) '트롤리 딜레마'에 대해 생각해보세요.",
+            discussion: {
+                topic: "자율주행차는 탑승자와 보행자 중 누구를 우선해야 하는가?",
+                pro: "탑승자를 우선해야 한다",
+                con: "보행자를 우선해야 한다"
+            }
+        },
+        cctv: {
+            title: "AI 감시카메라의 두 얼굴",
+            description: "학교 안전을 위해 도입된 AI CCTV가 학생들의 사생활을 침해하는 문제를 다룹니다.",
+            storyboard: [
+                { sceneTitle: "상황 제시: 안전을 위한 감시", imageText: "A sleek, modern AI-powered CCTV camera mounted on a school building wall", dialogue: "교장선생님: 학교 폭력 예방을 위해 최첨단 AI CCTV를 도입했습니다. 이제 모두가 안전할 겁니다." },
+                { sceneTitle: "문제 발생: 놀라운 효과와 그림자", imageText: "An AI drone camera intervening between two students about to fight, shining a light", dialogue: "뉴스: AI CCTV가 학생 간의 다툼을 조기에 발견하고 경고를 보내 큰 싸움을 막았습니다. 학부모들로부터 큰 호응을 얻고 있습니다." },
+                { sceneTitle: "갈등 심화: 통제되는 학교생활", imageText: "Students in a schoolyard feeling watched and uncomfortable under the gaze of multiple AI cameras", dialogue: "학생1: 그냥 친구랑 장난친 건데 자꾸 경고음이 울려. 감시당하는 기분이야.\n학생2: 나도. 내 모든 행동이 기록된다고 생각하니 소름 끼쳐." },
+                { sceneTitle: "윤리적 질문: 안전 vs 사생활", imageText: "A balancing scale with 'Safety' on one side and 'Privacy' on the other", dialogue: "학생들의 안전을 위한 AI 감시는 어디까지 허용될 수 있을까요? 안전과 사생활의 균형점은 어디일까요?" }
+            ],
+            hint: "AI가 수집한 개인정보(얼굴, 행동 데이터)는 어떻게 관리되어야 할까요? 만약 AI가 학생을 오인하여 잘못된 판단을 내린다면 누가 책임져야 할까요?",
+            discussion: {
+                topic: "학교 내 AI CCTV 도입은 정당한가?",
+                pro: "안전을 위해 필요하다",
+                con: "사생활 침해다"
+            }
+        },
+        art: {
+            title: "AI 화가, 창작인가 복제인가?",
+            description: "AI로 그린 그림이 예술 대회에서 수상하며 벌어지는 저작권과 창의성에 대한 논란을 탐구합니다.",
+            storyboard: [
+                { sceneTitle: "상황 제시: 새로운 예술의 탄생", imageText: "A student creating a beautiful, intricate digital artwork on a computer using an AI art generator", dialogue: "우와! 내가 입력한 단어 몇 개로 이렇게 멋진 그림이 만들어지다니! 이걸로 미술 대회에 나가야겠어." },
+                { sceneTitle: "문제 발생: 예상치 못한 수상", imageText: "The student happily receiving a gold medal at an art competition for their AI-generated artwork", dialogue: "심사위원: 정말 독창적이고 창의적인 작품입니다! 대상입니다!\n나: 감사합니다! 제 아이디어를 AI가 멋지게 표현해줬어요." },
+                { sceneTitle: "갈등 심화: 원작자의 등장", imageText: "An angry artist confronting the student, showing how the AI art is very similar to their own style", dialogue: "화가: 이 그림은 내 화풍을 그대로 베꼈잖아! 내 허락도 없이 내 그림을 AI 학습에 쓰다니, 이건 도둑질이야!\n나: 저는 그냥 아이디어를 냈을 뿐인데요..." },
+                { sceneTitle: "윤리적 질문: 진정한 창작자는 누구?", imageText: "A question mark hovering between the student, an AI robot, and the original artist", dialogue: "AI가 만든 예술 작품의 저작권은 누구에게 있을까요? (1.AI 사용자, 2.AI 개발자, 3.AI가 학습한 원본 예술가)" }
+            ],
+            hint: "인간의 '창의성'이란 무엇일까요? AI가 만든 결과물은 인간의 창작물과 동등하게 인정받을 수 있을까요? 저작권법은 어떻게 바뀌어야 할까요?",
+            discussion: {
+                topic: "AI가 생성한 창작물의 저작권을 인정해야 하는가?",
+                pro: "사용자의 창작물이다",
+                con: "원본 저작권을 존중해야 한다"
+            }
+        }
+    };
+
+    let currentScenarioKey = null;
+    let imageUploadTargetContainer = null;
+    let unsubscribeListeners = [];
+
+    function initializeAppUI() {
+        const scenarioList = document.getElementById('scenario-list');
+        scenarioList.innerHTML = ''; // Clear list before populating
+        Object.keys(scenarios).forEach(key => {
+            const scenario = scenarios[key];
+            const card = document.createElement('div');
+            card.className = 'scenario-card bg-white p-6 rounded-2xl shadow-md cursor-pointer';
+            card.innerHTML = `<h3 class="text-xl font-bold text-slate-900">${scenario.title}</h3><p class="text-slate-600 mt-2">${scenario.description}</p>`;
+            card.onclick = (e) => selectScenario(key, e.currentTarget);
+            scenarioList.appendChild(card);
+        });
+
+        document.getElementById('hint-button').onclick = () => document.getElementById('hint-box').classList.toggle('hidden');
+        document.getElementById('download-presentation').onclick = downloadPresentation;
+        
+        const modal = document.getElementById('discussion-modal');
+        document.getElementById('start-discussion-btn').onclick = () => modal.classList.remove('hidden');
+        document.getElementById('close-modal-btn').onclick = () => modal.classList.add('hidden');
+
+        document.getElementById('pro-send-btn').onclick = () => addMessage('pro');
+        document.getElementById('con-send-btn').onclick = () => addMessage('con');
+        document.getElementById('save-reflection-btn').onclick = saveReflection;
+        document.getElementById('download-discussion-report').onclick = downloadDiscussionReportAsHtml;
+        
+        ['pro-input', 'con-input'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addMessage(id.split('-')[0]); }
+            });
+        });
+
+        const imageUploadInput = document.getElementById('image-upload-input');
+        imageUploadInput.onchange = (event) => {
+            if (event.target.files && event.target.files[0] && imageUploadTargetContainer) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imageUploadTargetContainer.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg">`;
+                }
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        };
+
+        ['discussion-title-input', 'pro-title-input', 'con-title-input'].forEach(id => {
+            document.getElementById(id).addEventListener('blur', updateDiscussionTitles);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAppUI);
+    } else {
+        initializeAppUI();
+    }
+
+    function resetWorkspace() {
+        unsubscribeListeners.forEach(unsub => unsub());
+        unsubscribeListeners = [];
+        
+        document.getElementById('storyboard-container').innerHTML = '';
+        document.getElementById('solution-textarea').value = '';
+        document.getElementById('pro-chat').innerHTML = '';
+        document.getElementById('con-chat').innerHTML = '';
+        document.getElementById('pro-input').value = '';
+        document.getElementById('con-input').value = '';
+        document.getElementById('name-input').value = '';
+        document.getElementById('reflection-textarea').value = '';
+        document.getElementById('reflection-list').innerHTML = '';
+        document.getElementById('hint-box').classList.add('hidden');
+        document.getElementById('discussion-modal').classList.add('hidden');
+    }
+
+    function selectScenario(key, selectedCardElement) {
+        resetWorkspace();
+        currentScenarioKey = key;
+
+        document.querySelectorAll('.scenario-card').forEach(card => card.classList.remove('selected-scenario'));
+        selectedCardElement.classList.add('selected-scenario');
+        
+        const currentScenario = scenarios[key];
+        document.getElementById('workshop-area').classList.remove('hidden');
+
+        const storyboardContainer = document.getElementById('storyboard-container');
+        storyboardContainer.innerHTML = '';
+        currentScenario.storyboard.forEach((scene, index) => {
+            const sceneId = `scene-${index}`;
+            const sceneEl = document.createElement('div');
+            sceneEl.id = sceneId;
+            sceneEl.className = 'storyboard-scene bg-white p-6 rounded-2xl shadow-lg';
+            sceneEl.innerHTML = `
+                <h3 class="font-bold text-xl mb-4 text-center text-slate-700">${scene.sceneTitle}</h3>
+                <div class="grid md:grid-cols-2 gap-6 items-center">
+                    <div class="image-container bg-slate-200 rounded-lg h-64 flex flex-col items-center justify-center p-2">
+                        <p class="text-slate-500">이미지를 생성 또는 추가해주세요.</p>
+                    </div>
+                    <div class="h-full speech-bubble p-4">
+                        <textarea class="w-full h-full bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-lg p-2" data-title="${scene.sceneTitle}">${scene.dialogue}</textarea>
+                    </div>
+                </div>
+                <div class="text-center mt-4 flex justify-center items-center gap-4">
+                    <button class="generate-image-btn bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-600 transition" data-prompt="${scene.imageText}" data-target="${sceneId}">[이미지 생성]</button>
+                    <button class="upload-image-btn bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition" data-target="${sceneId}">[이미지 추가]</button>
+                </div>`;
+            storyboardContainer.appendChild(sceneEl);
+        });
+        
+        document.querySelectorAll('.generate-image-btn').forEach(button => {
+            button.onclick = (e) => {
+                const prompt = e.target.dataset.prompt;
+                const targetContainer = document.querySelector(`#${e.target.dataset.target} .image-container`);
+                generateImage(prompt, targetContainer);
+            };
+        });
+
+        document.querySelectorAll('.upload-image-btn').forEach(button => {
+            button.onclick = (e) => {
+                imageUploadTargetContainer = document.querySelector(`#${e.target.dataset.target} .image-container`);
+                document.getElementById('image-upload-input').click();
+            };
+        });
+        
+        document.getElementById('hint-text').innerText = currentScenario.hint;
+        
+        setupRealtimeListeners();
+        document.getElementById('workshop-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function setupRealtimeListeners() {
+        if (!currentScenarioKey) return;
+        const scenarioDocRef = doc(db, "artifacts", appId, "public", "data", "workshops", currentScenarioKey);
+
+        const unsubDoc = onSnapshot(scenarioDocRef, (docSnap) => {
+            const data = docSnap.data();
+            const defaults = scenarios[currentScenarioKey].discussion;
+            document.getElementById('discussion-title-input').value = data?.topic || defaults.topic;
+            document.getElementById('pro-title-input').value = data?.proTitle || defaults.pro;
+            document.getElementById('con-title-input').value = data?.conTitle || defaults.con;
+        });
+        unsubscribeListeners.push(unsubDoc);
+
+        ['pro', 'con'].forEach(type => {
+            const chatCollectionRef = collection(scenarioDocRef, `${type}Messages`);
+            const q = query(chatCollectionRef, orderBy("timestamp"));
+            const unsubChat = onSnapshot(q, (snapshot) => {
+                const chatBox = document.getElementById(`${type}-chat`);
+                chatBox.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const msgEl = document.createElement('div');
+                    msgEl.className = 'p-2 rounded-lg bg-white shadow-sm';
+                    msgEl.textContent = doc.data().text;
+                    chatBox.appendChild(msgEl);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+            unsubscribeListeners.push(unsubChat);
+        });
+
+        const reflectionsCollectionRef = collection(scenarioDocRef, 'reflections');
+        const qReflections = query(reflectionsCollectionRef, orderBy("timestamp", "desc"));
+        const unsubReflections = onSnapshot(qReflections, (snapshot) => {
+            const reflectionList = document.getElementById('reflection-list');
+            reflectionList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const reflectionEl = document.createElement('div');
+                reflectionEl.className = 'bg-green-50 p-4 rounded-lg border border-green-200';
+                reflectionEl.innerHTML = `<p class="font-bold text-green-800">${data.name || '익명'}</p><p class="mt-1 text-slate-700">${data.text}</p>`;
+                reflectionList.appendChild(reflectionEl);
+            });
+        });
+        unsubscribeListeners.push(unsubReflections);
+    }
+    
+    async function updateDiscussionTitles() {
+        if (!currentScenarioKey) return;
+        const scenarioDocRef = doc(db, "artifacts", appId, "public", "data", "workshops", currentScenarioKey);
+        await setDoc(scenarioDocRef, {
+            topic: document.getElementById('discussion-title-input').value,
+            proTitle: document.getElementById('pro-title-input').value,
+            conTitle: document.getElementById('con-title-input').value
+        }, { merge: true });
+    }
+
+    async function addMessage(type) {
+        if (!currentScenarioKey) return;
+        const scenarioDocRef = doc(db, "artifacts", appId, "public", "data", "workshops", currentScenarioKey);
+        const input = document.getElementById(`${type}-input`);
+        const messageText = input.value.trim();
+        if (messageText) {
+            const chatCollectionRef = collection(scenarioDocRef, `${type}Messages`);
+            await addDoc(chatCollectionRef, {
+                text: messageText,
+                timestamp: serverTimestamp()
+            });
+            input.value = '';
+        }
+    }
+    
+    async function saveReflection() {
+        if (!currentScenarioKey) return;
+        const scenarioDocRef = doc(db, "artifacts", appId, "public", "data", "workshops", currentScenarioKey);
+        const name = document.getElementById('name-input').value.trim();
+        const text = document.getElementById('reflection-textarea').value.trim();
+        if(text) {
+            const reflectionsCollectionRef = collection(scenarioDocRef, 'reflections');
+            await addDoc(reflectionsCollectionRef, {
+                name: name || "익명",
+                text: text,
+                timestamp: serverTimestamp()
+            });
+            document.getElementById('reflection-textarea').value = '';
+        }
+    }
+
+    async function generateImage(prompt, container) {
+        container.innerHTML = '<div class="loader"></div><p class="mt-2 text-slate-500">이미지 생성 중...</p>';
+        
+        const apiKey = "AIzaSyCDerGmvPq80yk7EgkUI1AjOFF4g6Du8yY"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+        const payload = {
+            instances: [{ prompt: `A vivid, storybook-style illustration of: ${prompt}` }],
+            parameters: { "sampleCount": 1 }
+        };
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                const errorMsg = result?.error?.message || `HTTP error! Status: ${response.status}`;
+                throw new Error(errorMsg);
+            }
+            
+            if (!result || Object.keys(result).length === 0) {
+                 console.error("Invalid API response: Empty object received", result);
+                 throw new Error("API로부터 빈 응답을 받았습니다. 안전 필터에 의해 차단되었을 수 있습니다.");
+            }
+
+            const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
+
+            if (base64Data) {
+                const imageUrl = `data:image/png;base64,${base64Data}`;
+                container.innerHTML = `<img src="${imageUrl}" class="w-full h-full object-cover rounded-lg">`;
+            } else {
+                console.error("Invalid API response: No image data found", result);
+                const errorMsg = result?.error?.message || "API 응답에 이미지 데이터가 없습니다.";
+                throw new Error(errorMsg);
+            }
+        } catch (error) {
+            console.error("Image generation failed:", error);
+            container.innerHTML = `<p class="text-red-500">이미지 생성 실패: ${error.message}</p>`;
+        }
+    }
+
+    async function downloadPresentation() {
+        if (!currentScenarioKey) { alert("먼저 시나리오를 선택해주세요."); return; }
+        alert('스토리보드와 해결 방안을 슬라이드 형식의 PDF로 변환합니다. 잠시만 기다려주세요.');
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4');
+        let isFirstPage = true;
+
+        const scenes = document.querySelectorAll('.storyboard-scene');
+        for (const scene of scenes) {
+            const canvas = await html2canvas(scene, { scale: 2, useCORS: true, allowTaint: true });
+            if (!isFirstPage) { doc.addPage(); }
+            doc.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 10, 10, 277, 190);
+            isFirstPage = false;
+        }
+
+        const solutionElement = document.getElementById('solution-section');
+        const solutionCanvas = await html2canvas(solutionElement, { scale: 2, useCORS: true, allowTaint: true });
+        doc.addPage();
+        doc.addImage(solutionCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', 10, 10, 277, 190);
+
+        doc.save(`${scenarios[currentScenarioKey].title}_발표자료.pdf`);
+    }
+
+    function downloadDiscussionReportAsHtml() {
+        if (!currentScenarioKey) { alert("먼저 시나리오를 선택해주세요."); return; }
+        alert('토론 자료와 활동 소감을 HTML 파일로 저장합니다.');
+        const currentScenario = scenarios[currentScenarioKey];
+        let reportHtml = `
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <title>AI 윤리 토론 결과 보고서</title>
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <style>
+                    body { font-family: 'Noto Sans KR', sans-serif; }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        .no-print { display: none; }
+                    }
+                <\/style>
+            </head>
+            <body class="bg-gray-100 p-10">
+                <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+                    <h1 class="text-3xl font-bold text-center mb-2">AI 윤리 토론 결과 보고서</h1>
+                    <p class="text-center text-gray-500 mb-8">시나리오: ${currentScenario.title}</p>
+        `;
+
+        reportHtml += `<h2 class="text-2xl font-semibold border-b-2 border-gray-300 pb-2 mb-4 mt-10">1. 찬반 토론</h2>`;
+        const discussionTopic = document.getElementById('discussion-title-input').value;
+        const proTitle = document.getElementById('pro-title-input').value;
+        const conTitle = document.getElementById('con-title-input').value;
+        
+        reportHtml += `<p class="text-center font-bold text-lg mb-4">${discussionTopic}</p>`;
+        reportHtml += `<div class="grid grid-cols-2 gap-6">`;
+        let proMessages = '';
+        document.querySelectorAll('#pro-chat div').forEach(msg => { proMessages += `<li class="bg-white p-2 rounded">${msg.textContent}</li>`; });
+        reportHtml += `
+            <div>
+                <h3 class="text-center font-semibold bg-blue-100 text-blue-800 p-2 rounded-t-lg">${proTitle}</h3>
+                <ul class="bg-gray-50 p-3 rounded-b-lg space-y-2 h-48 overflow-y-auto">${proMessages || '<li>의견 없음</li>'}</ul>
+            </div>
+        `;
+        let conMessages = '';
+        document.querySelectorAll('#con-chat div').forEach(msg => { conMessages += `<li class="bg-white p-2 rounded">${msg.textContent}</li>`; });
+        reportHtml += `
+            <div>
+                <h3 class="text-center font-semibold bg-red-100 text-red-800 p-2 rounded-t-lg">${conTitle}</h3>
+                <ul class="bg-gray-50 p-3 rounded-b-lg space-y-2 h-48 overflow-y-auto">${conMessages || '<li>의견 없음</li>'}</ul>
+            </div>
+        `;
+        reportHtml += `</div>`;
+
+        reportHtml += `<h2 class="text-2xl font-semibold border-b-2 border-gray-300 pb-2 mb-4 mt-10">2. 활동 소감</h2>`;
+        let reflectionMessages = '';
+         document.querySelectorAll('#reflection-list > div').forEach(reflection => {
+             reflectionMessages += `<div class="bg-green-50 p-4 rounded-lg border border-green-200 mt-2">${reflection.innerHTML}</div>`
+         });
+        reportHtml += `<div>${reflectionMessages || '<p>작성된 소감이 없습니다.</p>'}</div>`;
+
+        reportHtml += `
+                </div>
+                <div class="text-center mt-6 no-print">
+                    <p class="text-gray-600">이 페이지를 인쇄(Ctrl+P)하여 PDF로 저장할 수 있습니다.</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${currentScenario.title}_토론자료.html`;
+        link.click();
+    }
+</script>
+</body>
+</html>
+
